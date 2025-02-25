@@ -1,9 +1,15 @@
+; 本文件使用 GBK 编码。如果你看到乱码，请检查文本编辑器的编码设置。
+; This script is encoded in GBK. If you see garbled text, check your text editor's settings.
+
 !include "StrFunc.nsh"
 ${StrRep}
+
+!define ERRORINFO "文件操作失败！请确认配置文件是否缺失或被占用。"
 
 Name "RedPanda Modifier"
 OutFile "RedPandaTJPatch.exe"
 
+; when debugging, comment out the following line to avoid compression
 SetCompressor /SOLID lzma
 
 Section "Add Compiler"
@@ -13,26 +19,22 @@ Section "Add Compiler"
 SectionEnd
 
 Section "Modify Configuration"
-    ; 读取原始编译器数量
     ReadINIStr $0 "$APPDATA\RedPandaIDE\redpandacpp.ini" "CompilerSets" "count"
-    IntOp $1 $0 + 0  ; 转换为整数
+    IntOp $1 $0 + 0  ; str to int
 
-    ; 计算新值并更新count
-    IntOp $2 $1 + 4
+    IntOp $2 $1 + 4 ; compiler count+=4
     WriteINIStr "$APPDATA\RedPandaIDE\redpandacpp.ini" "CompilerSets" "count" $2
 
-    ; 设置四个新的索引值
-    StrCpy $R4 $1    ; 原始count值作为起始索引
-    IntOp $R5 $1 + 1
-    IntOp $R6 $1 + 2
-    IntOp $R7 $1 + 3
+    StrCpy $R4 $1    ; $R4=count
+    IntOp $R5 $1 + 1 ; $R5=count+1
+    IntOp $R6 $1 + 2 ; $R6=count+2
+    IntOp $R7 $1 + 3 ; $R7=count+3
 
-    ; 处理模板文件
     SetOutPath "$PLUGINSDIR"
-    File "template.ini"  ; 将模板文件复制到临时目录
+    File "template.ini"  ; put template.ini to temp dir
 
     FileOpen $0 "$PLUGINSDIR\template.ini" r
-    FileOpen $1 "$APPDATA\RedPandaIDE\redpandacpp.ini" a
+    FileOpen $1 "$APPDATA\RedPandaIDE\redpandacpp.ini" a ; append mode
     FileSeek $1 0 END
     FileWrite $1 "$\r$\n"
 
@@ -40,7 +42,7 @@ Section "Modify Configuration"
     ${AndIf} $1 <> 0
         loop:
             ClearErrors
-            FileRead $0 $9  ; 读取模板行
+            FileRead $0 $9  ; read one line at a time
             IfErrors done
             ${StrRep} $9 $9 "{{INDEX0}}" $R4
             ${StrRep} $9 $9 "{{INDEX1}}" $R5
@@ -52,7 +54,7 @@ Section "Modify Configuration"
             FileClose $0
             FileClose $1
     ${Else}
-        MessageBox MB_ICONSTOP "文件操作失败!"
+        MessageBox MB_ICONSTOP "${ERRORINFO}"
         Abort
     ${EndIf}
 SectionEnd
